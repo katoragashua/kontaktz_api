@@ -3,7 +3,6 @@ const { Schema } = mongoose;
 const Isemail = require("isemail");
 const bcrypt = require("bcryptjs");
 
-
 // Creating a model for users and adding some mongoose validations.
 const UserSchema = new Schema({
   name: {
@@ -25,15 +24,14 @@ const UserSchema = new Schema({
   password: {
     type: String,
     required: true,
-    maxlength: [6, "Password must not be less than 6 characters."]
+    maxlength: [6, "Password must not be less than 6 characters."],
   },
 });
 
 // Hashing the password
-UserSchema.pre("save", async function() {
+UserSchema.pre("save", async function () {
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-})
+});
 
-
-module.exports = mongoose.model("User", UserSchema)
+module.exports = mongoose.model("User", UserSchema);
