@@ -1,15 +1,15 @@
 const mongoose = require("mongoose");
-const { Schema } = mongoose;
 const Isemail = require("isemail");
 const bcrypt = require("bcryptjs");
 
 // Creating a model for users and adding some mongoose validations.
-const UserSchema = new Schema({
+const UserSchema = new  mongoose.Schema({
   name: {
     type: String,
     required: [true, "Please provide a name."],
     maxlength: [20, "Name must not exceed 20 characters"],
     minlength: 2,
+    trim: true
   },
   email: {
     type: String,
