@@ -38,9 +38,10 @@ const signinUser = async (req, res) => {
   if (!auth) {
     throw new UnauthenticatedRequestError("Password is incorrect.");
   }
+
   const token = await createJWT(user);
 
-  res.status(StatusCodes.OK).json(user, token);
+  res.status(StatusCodes.OK).json({user, token});
 };
 
 module.exports = {
