@@ -5,9 +5,10 @@ const express = require("express")
 const app = express()
 const mongoose = require("mongoose")
 
-const userRouter = require("./routes/userRoutes")
+const userRouter = require("./routes/authRoutes")
 const notFound = require("./middlewares/not-found")
 const errorHandler = require("./middlewares/errorHandler")
+const User = require("./models/User")
 
 app.use(express.json());
 
@@ -20,11 +21,12 @@ app.use("/api/v1/user", userRouter)
 app.use(errorHandler)
 app.use(notFound)
 
-const port = 3000 || process.env.PORT
+const port = 5000 || process.env.PORT
 
 const start = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI)
+    // await User.deleteMany()
     app.listen(port, () => {
       console.log(`App listening to port ${port}`);
     })
