@@ -4,13 +4,13 @@ const {
   BadRequestError,
   UnauthenticatedRequestError,
   NotFoundError,
+  UnauthorizedError,
 } = require("../errors/index");
-
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const Token = require("../models/Token");
 const crypto = require("crypto");
 const utilFuncs = require("../utils/index");
-const CustomError = require("../errors/customError");
 
 const createJWT = async (user) => {
   return jwt.sign(
@@ -26,9 +26,7 @@ const signupUser = async (req, res) => {
   const { email, password, name } = req.body;
   const userExists = await User.findOne({ email });
   if (userExists) {
-    throw new CustomError.BadRequestError(
-      "User already exists with this email."
-    );
+    throw new BadRequestError("User already exists with this email.");
   }
   // Create verification token
   const verificationToken = crypto.randomBytes(40).toString("hex");
@@ -49,23 +47,30 @@ const signupUser = async (req, res) => {
   });
 };
 
-const verifyUser = async (req, res) => {
+const verifyEmail = async (req, res) => {
   const { email, token } = req.body;
   const user = await User.findOne({ email });
   if (!user) {
-    throw new CustomError.NotFoundError("User not found");
+    throw new NotFoundError("User not found");
   }
+  // Check if user is already verified
+  if (user.isVerified) {
+    return res
+      .status(StatusCodes.OK)
+      .json({ message: "User already verified." });
+  }
+
   if (!(user.verificationToken === token)) {
-    throw new CustomError.UnauthenticatedRequestError("Verification failed.");
+    throw new UnauthenticatedRequestError("Verification failed.");
   }
   user.isVerified = true;
   user.verified = new Date(Date.now());
-  user.verificationToken = null;
+  user.verificationToken = "";
   await user.save();
-
+  console.log(user);
   res
     .status(StatusCodes.OK)
-    .json({ message: "Account verified successfully." });
+    .json({ message: "Account verified successfully.", user });
 };
 
 const signinUser = async (req, res) => {
@@ -80,27 +85,88 @@ const signinUser = async (req, res) => {
   }
   // Check if user is verified
   if (!user.isVerified) {
-    throw new CustomError.UnauthenticatedError("Please verify your account");
+    throw new UnauthenticatedRequestError("Please verify your account");
   }
   const auth = await bcrypt.compare(password, user.password);
   if (!auth) {
     throw new UnauthenticatedRequestError("Password is incorrect.");
   }
-  const token = crypto.randomBytes(40).toString("hex");
-  const tokenUser = utilFuncs.createUserObj({
-    name: user.name,
-    email: user.email,
-    userId: user._id
-  })
+  const tokenUser = utilFuncs.createUserObj(user);
   let refreshToken = "";
-
-  if (refreshToken) {
+  const existingToken = await Token.findOne({ user: user._id });
+  if (existingToken) {
+    const { isValid } = existingToken;
+    if (!isValid) {
+      throw new UnauthenticatedRequestError("Cannot access route.");
+    }
+    refreshToken = existingToken.refreshToken;
+    await utilFuncs.attachCookies(res, tokenUser, refreshToken);
+    return res
+      .status(StatusCodes.OK)
+      .json({ message: "User logged in successfully", user });
   }
   refreshToken = crypto.randomBytes(40).toString("hex");
-  res.status(StatusCodes.OK).json({ user, token });
+  await Token.create({ refreshToken, user: user._id });
+  await utilFuncs.attachCookies(res, tokenUser, refreshToken);
+  return res
+    .status(StatusCodes.OK)
+    .json({ message: "User logged in successfully", user });
+};
+
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  if (!email) throw new BadRequestError("Please enter a valid email address.");
+  const user = await User.findOne({ email });
+  const origin = "http://localhost:5000";
+  if (user) {
+    const passwordToken = crypto.randomBytes(40).toString("hex");
+    await utilFuncs.sendResetEmail({
+      name: user.name,
+      email: user.email,
+      passwordToken,
+      origin,
+    });
+
+    user.passwordToken = passwordToken;
+    user.passwordTokenExpiration = new Date(Date.now() + 1000 * 60 * 60);
+    await user.save();
+  }
+
+  res.status(StatusCodes.OK).json({
+    message:
+      "Success: A password reset link has been sent to your email address.",
+  });
+};
+
+const resetPassword = async (req, res) => {
+  const { email, password, token } = req.body;
+  if (!email || !password || !token) {
+    throw new BadRequestError("Missing credentials");
+  }
+
+  const user = await User.findOne({ email });
+  if (user) {
+    const currentDate = new Date(Date.now());
+    if (
+      !(user.passwordToken === token) ||
+      currentDate > user.passwordTokenExpiration
+    ) {
+      throw new UnauthenticatedRequestError("Invalid token or expired.");
+    }
+    user.password = password;
+    user.passwordToken = null;
+    user.passwordTokenExpiration = null;
+    await user.save();
+  }
+  res
+    .status(StatusCodes.OK)
+    .json({ message: "Password updated successfully.", user });
 };
 
 module.exports = {
   signupUser,
   signinUser,
+  verifyEmail,
+  forgotPassword,
+  resetPassword,
 };

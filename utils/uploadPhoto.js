@@ -17,7 +17,7 @@ const uploadPhoto = async (filePath) => {
     filePath,
     {
       use_filename: true,
-      folder: "albumin",
+      folder: "kontaktz",
     }
   );
 

@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+const { Schema, default: mongoose } = require("mongoose");
 
 const SocialSchema = new Schema({
   instagram: { type: String, default: null },
@@ -69,13 +69,13 @@ const ContactSchema = new mongoose.Schema({
   },
   social: {
     type: SocialSchema,
-    default: {}
+    default: {},
   },
   description: {
     type: String,
     required: [true, "Please add a description, eg. How/where you met."],
     trim: true,
     maxlength: 200,
-  }
+  },
 });
 // https://youtu.be/dAIQdot-6ns

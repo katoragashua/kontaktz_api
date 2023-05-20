@@ -28,7 +28,7 @@ const UserSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      maxlength: [6, "Password must not be less than 6 characters."],
+      minlength: [6, "Password must not be less than 6 characters."],
     },
     isVerified: {
       type: Boolean,
@@ -56,8 +56,11 @@ const UserSchema = new mongoose.Schema(
 
 // Hashing the password
 UserSchema.pre("save", async function () {
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  if(this.isModified("password")) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  }
+  return
 });
 
 module.exports = mongoose.model("User", UserSchema);
