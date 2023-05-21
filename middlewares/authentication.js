@@ -13,7 +13,7 @@ const authenticateUser = async (req, res, next) => {
         process.env.JWT_SECRET
       );
       req.user = decoded;
-      console.log(req.user);
+      console.log(decoded, "1");
       return next();
     }
 
@@ -32,6 +32,7 @@ const authenticateUser = async (req, res, next) => {
       req.user = decoded.user;
       // Attach cookies again
       await utilFuncs.attachCookies(res, req.user, decoded.refreshToken);
+      console.log(decoded, "2");
       next();
     }
   } catch (error) {

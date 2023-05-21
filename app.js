@@ -17,6 +17,7 @@ const contactRouter = require("./routes/contactRoutes");
 const notFound = require("./middlewares/not-found");
 const errorHandler = require("./middlewares/errorHandler");
 const User = require("./models/User");
+const Contact = require("./models/Contact");
 const fileUpload = require("express-fileupload")
 
 // Imagekit SDK configuration
@@ -61,6 +62,7 @@ const start = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
     // await User.deleteMany()
+    // await Contact.deleteMany()
     app.listen(port, () => {
       console.log(`App listening to port ${port}`);
     });
