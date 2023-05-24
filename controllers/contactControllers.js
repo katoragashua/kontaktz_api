@@ -50,13 +50,30 @@ const getAllContacts = async (req, res) => {
   }, {});
 
   const birthdays = await utilFuncs.checkBirthdays(contacts);
+  let birthdayContacts = [];
+  if (birthdays.length) {
+    birthdayContacts = await Promise.all(
+      birthdays.map((contactId) => {
+        const contact = Contact.findOne({ _id: contactId });
+        return contact;
+      })
+    );
+
+    birthdayContacts = birthdayContacts.reduce((acc, contact) => {
+      const { name } = contact;
+      acc.push(name);
+      return acc;
+    }, []);
+  }
+
+  const notifications = birthdayContacts.map((contact) => `${contact}'s birthday is today`)
 
   res.status(StatusCodes.OK).json({
     message: "Success",
     contacts,
     count: contacts.length,
     stats,
-    birthdays,
+    notifications,
   });
 };
 
@@ -120,7 +137,7 @@ const updateContact = async (req, res) => {
   const { id } = req.params;
   // let contact = await Contact.findOne({ _id: id, user: req.user.userId });
   const queryObj = { ...req.body };
-  if(req.body.description) {
+  if (req.body.description) {
     queryObj.tags = req.body.description
       .toLowerCase()
       .replace(/[^\w\s]/gi, "")
