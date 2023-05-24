@@ -3,7 +3,10 @@ const CustomError = require("../errors/customError");
 const Contact = require("../models/Contact");
 const mongoose = require("mongoose");
 const utilFuncs = require("../utils/index");
+// List/Array of stop words 
+const stopWords = ["the", "and", "a", "an", "in", "is", "it"];
 
+// Get all Contacts
 const getAllContacts = async (req, res) => {
   const { name, nationality, sort, code } = req.query;
   const { userId } = req.user;
@@ -32,22 +35,7 @@ const getAllContacts = async (req, res) => {
 
   result = result.skip(skip).limit(perPage);
   const contacts = await result;
-  // Using aggregate pipelines
-  let stats = await Contact.aggregate([
-    { $match: { user: new mongoose.Types.ObjectId(req.user.userId) } },
-    {
-      $group: {
-        _id: "$relationship",
-        count: { $sum: 1 },
-      },
-    },
-  ]);
-  // Reducing the aggregate to a single object
-  stats = stats.reduce((acc, cur) => {
-    const { _id, count } = cur;
-    acc[_id] = count;
-    return acc;
-  }, {});
+  
 
   const birthdays = await utilFuncs.checkBirthdays(contacts);
   let birthdayContacts = [];
@@ -66,19 +54,19 @@ const getAllContacts = async (req, res) => {
     }, []);
   }
 
-  const notifications = birthdayContacts.map((contact) => `${contact}'s birthday is today`)
+  const notifications = birthdayContacts.map(
+    (contact) => `${contact}'s birthday is today`
+  );
 
   res.status(StatusCodes.OK).json({
     message: "Success",
     contacts,
     count: contacts.length,
-    stats,
     notifications,
   });
 };
 
-const stopWords = ["the", "and", "a", "an", "in", "is", "it"];
-
+// Search contacts (Search by query parameters)
 const searchContacts = async (req, res) => {
   console.log(req.params);
   const { search } = req.params;
@@ -106,6 +94,7 @@ const searchContacts = async (req, res) => {
     .json({ message: "Success", contacts, count: contacts.length });
 };
 
+// Create contact
 const createContact = async (req, res) => {
   const { userId: user } = req.user;
   // Getting tags for each contact. This filters for symbols and stopwords
@@ -125,6 +114,7 @@ const createContact = async (req, res) => {
   res.status(StatusCodes.CREATED).json({ message: "Success", contact });
 };
 
+// Get a single contact by its Id
 const getSingleContact = async (req, res) => {
   const { id } = req.params;
   const contact = await Contact.findOne({ _id: id, user: req.user.userId });
@@ -133,6 +123,7 @@ const getSingleContact = async (req, res) => {
   res.status(StatusCodes.OK).json({ message: "Success", contact });
 };
 
+// Update contact
 const updateContact = async (req, res) => {
   const { id } = req.params;
   // let contact = await Contact.findOne({ _id: id, user: req.user.userId });
@@ -155,6 +146,7 @@ const updateContact = async (req, res) => {
   res.status(StatusCodes.OK).json({ message: "Success", contact });
 };
 
+// Delete contact
 const deleteContact = async (req, res) => {
   const { id } = req.params;
   const contact = await Contact.findOneAndDelete({
@@ -165,6 +157,31 @@ const deleteContact = async (req, res) => {
   res.status(StatusCodes.OK).json({ message: "Successfully deleted contact" });
 };
 
+// Get a stat of relationship with contacts
+const getContactsRelationshipStats = async (req, res) => {
+  const contacts = await Contact.find({ user: req.user.userId });
+  // Using aggregate pipelines
+  let stats = await Contact.aggregate([
+    { $match: { user: new mongoose.Types.ObjectId(req.user.userId) } },
+    {
+      $group: {
+        _id: "$relationship",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+  // Reducing the aggregate to a single object
+  stats = stats.reduce((acc, cur) => {
+    const { _id, count } = cur;
+    acc[_id] = count;
+    return acc;
+  }, {});
+  if ((await Contact.countDocuments({ user: req.user.userId })) > 0) {
+    console.log(await Contact.countDocuments({ user: req.user.userId }));
+  }
+  res.status(StatusCodes.OK).json({ message: "Success", stats });
+};
+
 module.exports = {
   getAllContacts,
   getSingleContact,
@@ -172,4 +189,5 @@ module.exports = {
   updateContact,
   deleteContact,
   searchContacts,
+  getContactsRelationshipStats,
 };
