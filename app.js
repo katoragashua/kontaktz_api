@@ -10,6 +10,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const cloudinary = require("cloudinary").v2;
 const ImageKit = require("imagekit");
+const mongoSanitize = require("express-mongo-sanitize");
 
 const authRouter = require("./routes/authRoutes");
 const userRouter = require("./routes/userRoutes");
@@ -18,7 +19,7 @@ const notFound = require("./middlewares/not-found");
 const errorHandler = require("./middlewares/errorHandler");
 const User = require("./models/User");
 const Contact = require("./models/Contact");
-const fileUpload = require("express-fileupload")
+const fileUpload = require("express-fileupload");
 
 // Imagekit SDK configuration
 const imageKit = new ImageKit({
@@ -35,15 +36,18 @@ cloudinary.config({
 });
 
 // Use express middlewares
+app.use(express.static("./public"));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true}))
+app.use(express.urlencoded({ extended: true }));
 
 // Use external packages
+
 app.use(fileUpload({ useTempFiles: true }));
 app.use(cors());
 app.use(helmet());
 app.use(cookieParser(process.env.JWT_SECRET));
-app.use(morgan("tiny"));
+app.use(mongoSanitize());
+process.env.NODE_ENV != "production" && app.use(morgan("tiny"));
 
 app.get("/", (req, res) => {
   res.status(200).send("<h1>Welcome to Kontaktz App!</h1>");
